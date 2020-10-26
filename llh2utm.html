@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>llh2xyz</title>
+	<meta charset="utf-8">
+	<script type="text/javascript">
+		const g2r  = 3.1415926535897932384626433 / 180.0;
+		rho        = 180 * 3600.0 / 3.1415926535897932384626433;
+		rhoinv     = (1.0 / rho);
+		rhoinv2    = rhoinv  * rhoinv;
+		rhoinv3    = rhoinv2 * rhoinv;
+		rhoinv4    = rhoinv3 * rhoinv;
+		rhoinv5    = rhoinv4 * rhoinv;
+		rhoinv6    = rhoinv5 * rhoinv;
+
+
+		/* * * * * * * * *  GSR80 constants * * * * * * * */
+		var   a    =   6378137.0;
+		var   f    = 1.0 / 298.25722210080;
+		var   e2   =   f * ( 2.0 - f );
+		var   el2  = 1.0 / (( 1.0 - f ) * ( 1.0 - f )) - 1.0;
+        var   el4  = el2 * el2;
+
+		var   e4   =  e2 * e2;
+		var   e6   =  e4 * e2;
+		var   e8   =  e6 * e2;
+		var   e10  =  e8 * e2;
+		/* * * * * * * * * * * * * * * * * * * * * * * * * */
+
+		/* * * * * UTM Datum dependent constants * * * * * */
+		var   k0  = 0.9996;
+		var   AA  = 1.0 + (    3.0 /      4.0) * e2  +
+		                  (   45.0 /     64.0) * e4  + 
+		                  (  175.0 /    256.0) * e6  + 
+		                  (11025.0 /  16384.0) * e8  + 
+		                  (43659.0 /  65536.0) * e10;
+		var   BB  =       (    3.0 /      4.0) * e2  +
+		                  (   15.0 /     16.0) * e4  + 
+		                  (  525.0 /    512.0) * e6  + 
+		                  ( 2205.0 /   2048.0) * e8  + 
+		                  (72765.0 /  65536.0) * e10;
+		var   CC  =       (   15.0 /     64.0) * e4  + 
+		                  (  105.0 /    256.0) * e6  + 
+		                  ( 2205.0 /   4096.0) * e8  + 
+		                  (10395.0 /  16384.0) * e10;
+		var   DD  =       (   35.0 /    512.0) * e6  + 
+		                  (  315.0 /   2048.0) * e8  + 
+		                  (31185.0 / 131072.0) * e10;
+		var   EE  =       (  315.0 /  16384.0) * e8  + 
+		                  ( 3465.0 /  65536.0) * e10;
+		var   FF  =       (  693.0 / 131072.0) * e10;
+		/* * * * * * * * * * * * * * * * * * * * * * * * * */
+
+		/****************************************************************************************/
+		var pattern      = /^([^:|^\/|^\@]{24})\s+(-?\d+\.?\d*)\s+(-?\d+\.?\d*)\s+(-?\d+\.?\d*)/;
+		var patternshort = /^([^:|^\/|^\@]{24})\s+(-?\d+\.?\d*)\s+(-?\d+\.?\d*)/;
+		var emptyline    = /^\s*$/;
+		var emptycol     = /^ /;
+		var comment      = /^#/;
+		var commas       = /.*,.*/;
+		var columns      = /^(.){24}\s(.){14,16}\s(.)+/;
+		var tabs         = /\t/;
+		//var comment    = /^\/\//;
+		/****************************************************************************************/
+
+		function validate() {
+    		var r,i,j,nlines,linelist,name,longitude,latitude,height,station,vs,nc,str;
+  			var ans, colchck, err, empty, emptyc;
+		}
+
+
+		function normal(latitude) {
+			var sp = Math.sin(g2r * latitude);
+			return a / Math.sqrt(1.0 - e2 * sp);
+		}
+
+		function normal_sp(sp) {
+			return a / Math.sqrt(1.0 - e2 * sp * sp);
+		}
+
+		// Expect lat lon in radians
+		// a, f, e2 is globally defined;
+		function llh2xyz(lat, lon, hgt) {
+			var N, XYZ;
+
+			var sp   = Math.sin(lat);
+			var N    = normal(sp);
+			var fac1 = (1.0 * N + 1.0 * hgt) * Math.cos(lat);
+
+			//alert(sl +" "+ N +" "+ fac1);
+			XYZ      = [fac1 * Math.cos(lon), fac1 * Math.sin(lon), (N * (1.0 - e2) + 1.0 * hgt) * sp];
+			return XYZ;
+		}
+
+		// Expect lat lon in radians
+		// a, f, e2 is globally defined;
+		function fuso(lon) {
+			return Math.floor((183.0 + ((lon / g2r) + 3.0)) / 6.0);
+		}
+
+		// Expect lat lon in radians
+		// a, f, e2 is globally defined;
+		function llh2en(lat, lon) {
+			var convM, deltaLambda, EN, E, N, fuso, mc, p, S;
+			var kI, kII, kIII, kIV, kV, A6, B5;
+			var sp, sp2, cp, cp2, cp4, cp5, tp, tp2, tp4;
+
+			sp      = Math.sin(lat);
+			sp2     = sp * sp;
+
+			cp      = Math.cos(lat);
+			cp2     = cp  * cp;
+			cp4     = cp2 * cp2;
+			cp5     = cp4 * cp;
+			
+			tp      = Math.tan(lat);
+			tp2     = tp  * tp;
+			tp4     = tp2 * tp2;
+
+			fuso    = Math.floor((183.0 + ((lon / g2r) + 3.0)) / 6.0);
+			mc      = Math.floor(6.0 * fuso - 183.0);
+			dLambda = ((lon / g2r) - mc) * 3600.00; // Seconds
+			
+			p       = 1.0E-4 * dLambda;
+			p2      = p  * p;
+			p3      = p2 * p;
+			p4      = p3 * p;
+			p5      = p4 * p;
+			p6      = p5 * p;
+
+			N       = normal_sp(sp);
+
+			S       = a * (1.0 - e2) * (   AA         * lat
+				                         -(BB /  2.0) * Math.sin( 2.0 * lat)
+				                         +(CC /  4.0) * Math.sin( 4.0 * lat)
+				                         -(DD /  6.0) * Math.sin( 6.0 * lat)
+				                         +(EE /  8.0) * Math.sin( 8.0 * lat)
+				                         -(FF / 10.0) * Math.sin(10.0 * lat) );
+
+			kI      = (k0 * S);
+			kII     = 1.0E8  * k0 * N * sp * cp * rhoinv2                                                                                 /   2.0;
+			kIII    = 1.0E16 * k0 * N * sp * cp2 * cp * rhoinv4 * ( 5.0        - tp2               + 9.0 * el2 * cp2   + 4.0 * el4 * cp4) /  24.0;
+			kIV     = 1.0E4  * k0 * N * cp            * rhoinv                                                                                   ;
+			kV      = 1.0E12 * k0 * N * cp * cp2      * rhoinv3 * ( 1.0        - tp2                                   + 1.0 * el2 * cp2) /   6.0;
+
+			A6      = 1.0E24 * k0 * N * sp  * cp5     * rhoinv6 * (61.0 - 58.0 * tp2 + 1.0 * tp4 + 270.0 * el2 * cp2 - 330.0 * el2 * sp2) / 720.0;
+			B5      = 1.0E20 * k0 * N       * cp5     * rhoinv5 * ( 5.0 - 18.0 * tp2 + 1.0 * tp4 +  14.0 * el2 * cp2 -  58.0 * el2 * sp2) / 120.0;
+
+			kXII    = 1.0E4  * sp                                                                                                                ;
+			kXIII   = 1.0E12 * sp * cp2               * rhoinv2 * ( 1.0                          +   3.0 * el2 * cp2  +  2.0 * el4 * cp4) /   3.0;
+			C5      = 1.0E20 * sp * cp4               * rhoinv4 * ( 2.0        - tp2                                                    ) /  15.0;
+
+			N       = kI      + 1.0 * kII  * p2 + 1.0 * kIII  * p4 + 1.0 * A6 * p6;
+			E       =           1.0 * kIV  * p  + 1.0 * kV    * p3 + 1.0 * B5 * p5;
+			convM   =           1.0 * kXII * p  + 1.0 * kXIII * p3 + 1.0 * C5 * p5; 
+
+
+			alert((lat - mc)?mc + " Oeste do MC. dL = " + dLambda:mc + "Leste do MC. dL = " + 1.0 * dLambda);
+
+			EN = [(((lat / g2r) - mc) < 0.0)?(500000.0 - 1.0 * E):(500000.0 + 1.0 * E), ((lat / g2r) < 0.0)?(10000000.0 + 1.0 * N):N, mc, fuso ,convM];
+			return EN;
+		}
+
+		function convert() {
+		//index,name,longitude,latitude,elevation,collection start,collection end,solution status,lateral rms,sample count,antenna height
+		//1,SITE,-46.99280220660002,-24.299588469574997,19.85798,2020-07-17 23:48:42 UTC,2020-07-17 23:49:22 UTC,FIX,0.0036,40.0,0.001
+
+			var EN, lat, lon, hgt, XYZ;
+			var inputString   = document.getElementById("myTextArea").value;
+			var outputString  = document.getElementById("myOutTextArea");
+			var linelist      = inputString.split(/\n/);
+			var nlines        = linelist.length;
+
+			var col, labels, message, numLines, results, splittedLines;
+			//alert(inputString.split(/\n/).length);
+
+			for (var i = 0; i < nlines; i++)
+				if ( emptyline.exec(linelist[i]) ) {
+					alert("Detected " + nlines + " lines\n" + "Please delete empty lines");
+					return false;
+				}
+			alert("Detected " + nlines + " lines");
+
+				    results   = "index," + 
+				                "name," + 
+				                "X," + 
+				                "Y," + 
+				                "Z," +
+				                "fuso," + 
+				                "E," + 
+				                "N," + 
+				                "h," + 
+				                "Convergencia Meridiana\n";
+				outputString.value = results;
+
+			for (var i = 1; i < nlines; i++) {
+
+				splittedLines = inputString.split('\n');
+
+				labels        = splittedLines[0].split(',');
+				col           = splittedLines[i].split(',');
+				
+				//outputString.value = "";
+				/*
+				      message = labels[0]  + ": " + col[0]  + "\n" +
+				              	labels[1]  + ": " + col[1]  + "\n" +
+				   	            labels[2]  + ": " + col[2]  + "\n" +
+				    	        labels[3]  + ": " + col[3]  + "\n" +
+				        	    labels[4]  + ": " + col[4]  + "\n" +
+				            	labels[5]  + ": " + col[5]  + "\n" +
+				         	    labels[6]  + ": " + col[6]  + "\n" +
+				                labels[7]  + ": " + col[7]  + "\n" +
+				                labels[8]  + ": " + col[8]  + "\n" +
+				                labels[9]  + ": " + col[9]  + "\n" +
+				                labels[10] + ": " + col[10];
+				
+				    results   = col[0]  + "," + 
+				                col[1]  + "," + 
+				                col[3]  + "," + 
+				                col[2]  + "," + 
+				                col[4]  + ",";
+				outputString.value += results;
+				*/
+
+				lat           = col[3]  * g2r;
+				lon           = col[2]  * g2r;
+				hgt           = col[4] ;
+
+				XYZ           = llh2xyz(lat, lon, hgt);
+				EN            = llh2en (lat, lon);
+
+				    results   = col[0]  + "," + 
+				                col[1]  + "," + 
+				                XYZ[0]  + "," + 
+				                XYZ[1]  + "," + 
+				                XYZ[2]  + "," +
+				                EN [2]  + "," + 
+				                EN [0]  + "," + 
+				                EN [1]  + "," + 
+				                   hgt  + "," + 
+				                EN [4]  + "\n";
+
+				outputString.value += results;
+				//alert(col[2] + " " + col[3] + " " + col[4]);
+			}
+		}
+
+	</script>
+
+	<script type="text/javascript">
+		function myFunction(id, tooltipId) {
+		  var copyText = document.getElementById(id);
+		  copyText.select();
+		  copyText.setSelectionRange(0, 99999);
+		  document.execCommand("copy");
+		  
+		  var tooltip = document.getElementById(tooltipId);
+		  //tooltip.innerHTML = "Copied: " + copyText.value;
+		  tooltip.innerHTML = "Copied "+ copyText.length +" chars to clipboard!";
+		}
+
+		function outFunc(id, msg) {
+		  var tooltip = document.getElementById(id);
+		  tooltip.innerHTML = msg;
+		}
+	</script>
+
+
+	<script type="text/javascript">
+		//function myFunction() {
+  		//	document.getElementById("myTextArea").value = "Fifth Avenue, New York City";
+		//}
+		function eraseText(id) {
+			document.getElementById(id).value = "";
+		}
+	</script>
+
+	<style type="text/css">
+	.tooltip {
+	  position: relative;
+	  display: inline-block;
+	}
+
+	.tooltip .tooltiptext {
+	  visibility: hidden;
+	  width: 140px;
+	  background-color: #555;
+	  color: #fff;
+	  text-align: center;
+	  border-radius: 6px;
+	  padding: 5px;
+	  position: absolute;
+	  z-index: 1;
+	  bottom: 150%;
+	  left: 50%;
+	  margin-left: -75px;
+	  opacity: 0;
+	  transition: opacity 0.3s;
+	}
+
+	.tooltip .tooltiptext::after {
+	  content: "";
+	  position: absolute;
+	  top: 100%;
+	  left: 50%;
+	  margin-left: -5px;
+	  border-width: 5px;
+	  border-style: solid;
+	  border-color: #555 transparent transparent transparent;
+	}
+
+	.tooltip:hover .tooltiptext {
+	  visibility: visible;
+	  opacity: 1;
+	}
+	</style>
+</head>
+
+<body>
+
+Input:<br>
+<textarea id="myTextArea" style="width: 1320px; height: 105px;">index,name,longitude,latitude,elevation,collection start,collection end,solution status,lateral rms,sample count,antenna height
+1,SITE,-46.962802225,-24.2885884611,10.919,2020-07-17 23:48:42 UTC,2020-07-17 23:49:22 UTC,FIX,0.0036,40.0,0.001
+</textarea>
+
+<p>Click the button to change the contents of the text area.</p>
+
+
+
+<!--<button type="button" onclick="myFunction()">Try it</button>-->
+<button type="button" onclick="eraseText('myOutTextArea')">Clean Results</button>
+<!--<button type="button" onclick="explode()">Convert</button>-->
+
+<div class="tooltip">
+<button onclick="convert()" onmouseout="outFunc('myToolTipConv', 'Convert...')">
+  <span class="tooltiptext" id="myToolTipConv">Convert</span>
+  Convert
+  </button>
+</div>
+
+<div class="tooltip">
+<button onclick="myFunction('myOutTextArea','myToolTipCopy')" onmouseout="outFunc('myToolTipCopy', 'Copied to clipboard')">
+  <span class="tooltiptext" id="myToolTipCopy">Copy to clipboard</span>
+  Copy to clipboard
+  </button>
+</div>
+
+<br>
+Output:<br>
+<textarea id="myOutTextArea" style="width: 1320px; height: 105px;">Results</textarea>
+
+
+</body>
+</html>
