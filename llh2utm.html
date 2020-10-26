@@ -1,3 +1,4 @@
+<!-- Dirty code, clean and refactor it before to publish -->
 <!DOCTYPE html>
 <html lang="en-US">
 <head>
@@ -53,6 +54,7 @@
 		/* * * * * * * * * * * * * * * * * * * * * * * * * */
 
 		/****************************************************************************************/
+		// Copy from oso chalmers loading se
 		var pattern      = /^([^:|^\/|^\@]{24})\s+(-?\d+\.?\d*)\s+(-?\d+\.?\d*)\s+(-?\d+\.?\d*)/;
 		var patternshort = /^([^:|^\/|^\@]{24})\s+(-?\d+\.?\d*)\s+(-?\d+\.?\d*)/;
 		var emptyline    = /^\s*$/;
@@ -164,7 +166,7 @@
 
 		function convert() {
 		//index,name,longitude,latitude,elevation,collection start,collection end,solution status,lateral rms,sample count,antenna height
-		//1,SITE,-46.99280220660002,-24.299588469574997,19.85798,2020-07-17 23:48:42 UTC,2020-07-17 23:49:22 UTC,FIX,0.0036,40.0,0.001
+		//1,SITE,-45.19280220660002,-23.999588469574997,19.85798,2020-07-17 23:48:42 UTC,2020-07-17 23:49:22 UTC,FIX,0.0036,40.0,0.001
 
 			var EN, lat, lon, hgt, XYZ;
 			var inputString   = document.getElementById("myTextArea").value;
@@ -247,7 +249,7 @@
 		}
 
 	</script>
-
+	<!-- Based on w3schools sample codes -->
 	<script type="text/javascript">
 		function myFunction(id, tooltipId) {
 		  var copyText = document.getElementById(id);
@@ -275,7 +277,7 @@
 			document.getElementById(id).value = "";
 		}
 	</script>
-
+	<!-- Based on w3schools sample styles -->
 	<style type="text/css">
 	.tooltip {
 	  position: relative;
@@ -325,9 +327,6 @@ Input:<br>
 </textarea>
 
 <p>Click the button to change the contents of the text area.</p>
-
-
-
 <!--<button type="button" onclick="myFunction()">Try it</button>-->
 <button type="button" onclick="eraseText('myOutTextArea')">Clean Results</button>
 <!--<button type="button" onclick="explode()">Convert</button>-->
@@ -349,7 +348,6 @@ Input:<br>
 <br>
 Output:<br>
 <textarea id="myOutTextArea" style="width: 1320px; height: 105px;">Results</textarea>
-
 
 </body>
 </html>
