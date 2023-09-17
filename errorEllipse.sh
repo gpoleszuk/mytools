@@ -55,7 +55,7 @@ echo $1 $2 $3 | awk '{
     #printf("%14.9f   %14.9f %14.9f   %14.9f %14.9f\n", t, x, y, xr, yr);
     xr = x * cost - y * sint;
     yr = x * sint + y * cost;
-    printf("%14.9f %14.9f\n", xr, yr);
+    printf("%20.12E %20.12E\n", xr, yr);
   }
   max=(bx>by)?bx:by;
   max*=1.1;  # increase 10%
@@ -64,7 +64,7 @@ echo $1 $2 $3 | awk '{
   printf("set grid; unset key;\n");
   printf("set xrange[%0.16E:%0.16E];\n", -max, max);
   printf("set yrange[%0.16E:%0.16E];\n", -max, max);
-  printf("set object 1 rect from %0.16f,%0.16f to %0.16f,%0.16f lw 1 dt 2 fillstyle transparent solid 0.0;\n", -bx, -by, bx, by);
+  printf("set object 1 rect from %0.16E,%0.16E to %0.16E,%0.16E lw 1 dt 2 fillstyle transparent solid 0.0;\n", -bx, -by, bx, by);
   printf("set output \"ellipse.svg\";\n");
   printf("plot $DATA u 1:2 with dots;\n");
   printf("unset output\n");
